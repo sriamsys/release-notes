@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* AG Grid styles */
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-alpine.css';
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f8f9ff;
+  color: #0b1c30;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f8f9ff;
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+/* ReactQuill Custom styles for elegance */
+.ql-editor {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.ql-container.ql-snow {
+  border-radius: 0 0 8px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+.ql-toolbar.ql-snow {
+  border-radius: 8px 8px 0 0;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-bottom: none !important;
+  background-color: #f1f5f9;
+}

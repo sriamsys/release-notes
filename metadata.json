@@ -1,0 +1,6 @@
+{
+  "name": "ReleaseHub",
+  "description": "Enterprise release communication platform for release notes, help center, documentation, and configurations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
