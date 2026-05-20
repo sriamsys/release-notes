@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ReleaseNotes from './pages/ReleaseNotes';
 import HelpCenter from './pages/HelpCenter';
+import ReleaseNotesManagement from './pages/ReleaseNotesManagement';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             {/* Core pages */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="release-notes" element={<ReleaseNotes />} />
+            <Route path="release-notes-management" element={<ReleaseNotesManagement />} />
             <Route path="help-center" element={<HelpCenter />} />
 
             {/* Fallback pattern */}

@@ -34,11 +34,74 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { mockReleases as initialReleases } from '../mockData';
+import { ReleaseStorageService } from '../lib/ReleaseStorageService';
 
 export default function ReleaseNotes() {
   const navigate = useNavigate();
   const latestReleaseRef = useRef<HTMLDivElement>(null);
+
+  // Load from localStorage
+  const releases = useMemo(() => {
+    return ReleaseStorageService.getAll().filter(r => r.status === 'Published');
+  }, []);
+
+  // Compute compatible structure
+  const initialReleases = useMemo(() => {
+    return releases.map((r, index) => {
+      const detailedNotes: string[] = [];
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(r.content || '', 'text/html');
+        const lis = doc.querySelectorAll('li');
+        if (lis.length > 0) {
+          lis.forEach(li => {
+            if (li.textContent) detailedNotes.push(li.textContent.trim());
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      if (detailedNotes.length === 0) {
+        if (r.summary) {
+          detailedNotes.push(r.summary);
+        } else {
+          detailedNotes.push('No detailed logs published for this version.');
+        }
+      }
+
+      let formattedDate = r.publishedDate;
+      try {
+        if (r.publishedDate) {
+          const parts = r.publishedDate.split('-');
+          if (parts.length === 3) {
+            const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      return {
+        id: r.id,
+        version: r.version,
+        title: r.title,
+        date: formattedDate || 'May 15, 2026',
+        readTime: '2 min read',
+        isNew: index === 0, // mark latest published as new
+        summary: r.summary,
+        detailedNotes: detailedNotes,
+        content: r.content,
+        features: [
+          { name: 'Core Updates', status: 'STABLE' as const },
+          { name: 'Custom Layouts', status: 'STABLE' as const }
+        ],
+        category: 'General',
+        author: r.author || 'Sarah Jenkins'
+      };
+    });
+  }, [releases]);
 
   // States
   const [searchQuery, setSearchQuery] = useState('');
@@ -377,16 +440,33 @@ export default function ReleaseNotes() {
                           >
                             Detailed Notes
                           </Typography>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {rel.detailedNotes.map((note, noteIdx) => (
-                              <Box key={noteIdx} sx={{ display: 'flex', alignItems: 'start', gap: 1.5 }}>
-                                <CheckCircle sx={{ color: '#006578', fontSize: 18, mt: '3px' }} />
-                                <Typography variant="body2" sx={{ color: '#3d494c', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                                  {note}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
+                          {rel.content ? (
+                            <Box 
+                              className="rich-content-view text-sm leading-relaxed"
+                              sx={{ 
+                                '& h3': { fontSize: '1.2rem', fontWeight: 700, mt: 2, mb: 1, color: '#0b1c30' },
+                                '& h4': { fontSize: '1rem', fontWeight: 700, mt: 2, mb: 1, color: '#0b1c30' },
+                                '& p': { mb: 2, color: '#3d494c' },
+                                '& ul': { listStyleType: 'disc', pl: 3, mb: 2 },
+                                '& ol': { listStyleType: 'decimal', pl: 3, mb: 2 },
+                                '& li': { mb: 1, color: '#3d494c' },
+                                '& strong': { color: '#0b1c30', fontWeight: 'bold' },
+                                '& em': { fontStyle: 'italic' },
+                              }}
+                              dangerouslySetInnerHTML={{ __html: rel.content }}
+                            />
+                          ) : (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                              {rel.detailedNotes.map((note, noteIdx) => (
+                                <Box key={noteIdx} sx={{ display: 'flex', alignItems: 'start', gap: 1.5 }}>
+                                  <CheckCircle sx={{ color: '#006578', fontSize: 18, mt: '3px' }} />
+                                  <Typography variant="body2" sx={{ color: '#3d494c', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                                    {note}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          )}
                         </Box>
 
                         <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary', fontSize: '0.9rem' }}>
@@ -423,8 +503,8 @@ export default function ReleaseNotes() {
                             </TableHead>
                             <TableBody>
                               {rel.features.map((feat) => {
-                                const isStable = feat.status === 'STABLE';
-                                const isBeta = feat.status === 'BETA';
+                                const isStable = (feat.status as string) === 'STABLE';
+                                const isBeta = (feat.status as string) === 'BETA';
                                 return (
                                   <TableRow key={feat.name} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                     <TableCell sx={{ fontSize: '0.9rem', py: 1.5 }}>{feat.name}</TableCell>

@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -12,113 +11,98 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Drawer,
-  TextField,
   Divider,
-  MenuItem,
   Stack,
-  Alert,
-  Snackbar
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
   Search,
   ExpandMore,
-  RocketLaunch,
-  Code,
-  Settings,
-  Palette,
-  ArrowBack,
-  QuestionAnswer,
-  ContactSupport,
-  Send,
-  Help
+  CheckCircle,
+  UnfoldMore,
+  UnfoldLess,
+  ArrowUpward
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-
-import { mockHelpCategories } from '../mockData';
-import { HelpArticle } from '../types';
-
-interface TicketFormInput {
-  name: string;
-  email: string;
-  subject: string;
-  urgency: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-}
+import { mockReleases } from '../mockData';
 
 export default function HelpCenter() {
-  // Navigation drill-down
-  const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [supportDrawerOpen, setSupportDrawerOpen] = useState(false);
-  const [successSnackbar, setSuccessSnackbar] = useState(false);
-  const [submittedTicket, setSubmittedTicket] = useState<any>(null);
+  const latestReleaseRef = useRef<HTMLDivElement>(null);
 
-  // react-hook-form initiation
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors }
-  } = useForm<TicketFormInput>({
-    defaultValues: {
-      name: 'Contractor - Dev',
-      email: 'svishwamitra@gmail.com',
-      subject: '',
-      urgency: 'medium',
-      description: '',
-    }
+  // States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({
+    '1': true, // The latest release (id='1') is expanded by default
   });
 
-  // Ticket submissions mock handler
-  const onTicketSubmit = (data: TicketFormInput) => {
-    setSubmittedTicket(data);
-    setSuccessSnackbar(true);
-    setSupportDrawerOpen(false);
-    reset({
-      name: 'Contractor - Dev',
-      email: 'svishwamitra@gmail.com',
-      subject: '',
-      urgency: 'medium',
-      description: '',
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'info'>('success');
+
+  // Expand / Collapse single accordion
+  const handleAccordionChange = (id: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpandedMap((prev) => ({
+      ...prev,
+      [id]: isExpanded,
+    }));
+  };
+
+  // Expand all visible releases
+  const handleExpandAll = () => {
+    const nextMap: Record<string, boolean> = {};
+    mockReleases.forEach((rel) => {
+      nextMap[rel.id] = true;
     });
+    setExpandedMap(nextMap);
+    setSnackbarMessage('All releases expanded');
+    setSnackbarSeverity('info');
+    setSnackbarOpen(true);
   };
 
-  // Icon mapping helper
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'rocket':
-        return <RocketLaunch sx={{ color: '#006578', fontSize: 32 }} />;
-      case 'code':
-        return <Code sx={{ color: '#8a4d00', fontSize: 32 }} />;
-      default:
-        return <Palette sx={{ color: '#008097', fontSize: 32 }} />;
-    }
+  // Collapse all visible releases
+  const handleCollapseAll = () => {
+    setExpandedMap({});
+    setSnackbarMessage('All releases collapsed');
+    setSnackbarSeverity('info');
+    setSnackbarOpen(true);
   };
 
-  // Combined search computation across all nested articles
-  const searchedArticles = useMemo(() => {
+  // Jump to latest (Scroll target & expand)
+  const handleJumpToLatest = () => {
+    latestReleaseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setExpandedMap((prev) => ({ ...prev, '1': true }));
+    setSnackbarMessage('Navigated to latest release note');
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+  };
+
+  // Filter releases based on search query
+  const filteredReleases = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return null;
-
-    const results: HelpArticle[] = [];
-    mockHelpCategories.forEach((cat) => {
-      cat.articles.forEach((art) => {
-        if (
-          art.title.toLowerCase().includes(query) ||
-          art.summary.toLowerCase().includes(query) ||
-          art.content.toLowerCase().includes(query)
-        ) {
-          results.push(art);
-        }
-      });
+    if (!query) {
+      return mockReleases;
+    }
+    return mockReleases.filter((rel) => {
+      const matchTitle = rel.title.toLowerCase().includes(query);
+      const matchVersion = rel.version.toLowerCase().includes(query);
+      const matchSummary = rel.summary.toLowerCase().includes(query);
+      const matchNotes = rel.detailedNotes.some((note) => note.toLowerCase().includes(query));
+      const matchCategory = rel.category.toLowerCase().includes(query);
+      return matchTitle || matchVersion || matchSummary || matchNotes || matchCategory;
     });
-    return results;
   }, [searchQuery]);
 
   return (
     <Box sx={{ py: 1 }}>
-      {/* Upper header */}
+      {/* Header Container */}
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="h3"
@@ -130,399 +114,295 @@ export default function HelpCenter() {
             mb: 1
           }}
         >
-          Help Center
+          Release Notes
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 865 }}>
-          Search technical manuals, API webhooks specifications, and white-label theme customizer configurations.
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 860 }}>
+          Stay updated with latest product improvements.
         </Typography>
 
-        {/* Big search portal bar */}
+        {/* Toolbar Section */}
         <Card
           sx={{
-            mt: 3.5,
-            p: 2,
+            mt: 3,
+            p: 1.5,
             bgcolor: '#ffffff',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 2,
             border: '1px solid rgba(189, 200, 205, 0.4)',
             boxShadow: '0 4px 12px rgba(11,28,48,0.02)',
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: 2 }}>
-            <Box sx={{ flexGrow: 1, width: { xs: '100%', md: 'auto' } }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  bgcolor: '#f1f5f9',
-                  border: '1px solid rgba(189, 200, 205, 0.5)',
-                  borderRadius: '24px',
-                  px: 2.5,
-                  py: 0.75,
-                }}
-              >
-                <Search sx={{ color: '#6d797d', fontSize: 20, mr: 1.5 }} />
-                <InputBase
-                  placeholder="Ask a question or search for resources..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  sx={{ fontSize: '0.95rem', width: '100%', color: '#0b1c30' }}
-                />
-              </Box>
-            </Box>
-            <Box sx={{ width: { xs: '100%', md: 'auto' }, textAlign: { md: 'right' } }}>
-              <Button
-                variant="contained"
-                startIcon={<ContactSupport />}
-                onClick={() => setSupportDrawerOpen(true)}
-                sx={{
-                  bgcolor: '#006578',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  borderRadius: '4px',
-                  width: { xs: '100%', md: 'auto' },
-                  px: 3,
-                  py: 1,
-                  '&:hover': { bgcolor: '#008097' },
-                }}
-              >
-                Create Support Ticket
-              </Button>
-            </Box>
+          {/* Inner Search Field */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              bgcolor: '#ffffff',
+              border: '1px solid rgba(189, 200, 205, 0.6)',
+              borderRadius: '4px',
+              px: 2,
+              py: 0.5,
+              width: { xs: '100%', md: 380 },
+            }}
+          >
+            <Search sx={{ color: '#6d797d', fontSize: 18, mr: 1 }} />
+            <InputBase
+              placeholder="Search releases"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              sx={{ fontSize: '0.9rem', width: '100%', color: '#0b1c30' }}
+            />
           </Box>
-        </Card>
-      </Box>
 
-      {/* Ticket form output feedback */}
-      {submittedTicket && (
-        <Alert
-          severity="success"
-          onClose={() => setSubmittedTicket(null)}
-          sx={{ mb: 3, border: '1px solid rgba(27,77,62,0.2)' }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Ticket Successfully Registered! Ticket ID: RH-2026-{(Math.random() * 9000 + 1000).toFixed(0)}</Typography>
-          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-            Our engineering desk has received your ticket "<strong>{submittedTicket.subject}</strong>" under {submittedTicket.urgency.toUpperCase()} urgency.
-          </Typography>
-        </Alert>
-      )}
-
-      {/* Dynamic View Logic */}
-      {selectedArticle ? (
-        /* Drilling down into reading particular Article */
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-          <Box sx={{ mb: 3 }}>
+          {/* Core Controls */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Button
-              startIcon={<ArrowBack />}
-              onClick={() => setSelectedArticle(null)}
-              sx={{ color: '#006578', fontWeight: 600, mb: 2 }}
+              onClick={handleExpandAll}
+              startIcon={<UnfoldMore />}
+              variant="text"
+              sx={{
+                color: '#3d494c',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { color: '#006578', bgcolor: 'rgba(0,101,120,0.04)' }
+              }}
             >
-              Back to Help Directories
+              Expand All
+            </Button>
+            <Button
+              onClick={handleCollapseAll}
+              startIcon={<UnfoldLess />}
+              variant="text"
+              sx={{
+                color: '#3d494c',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { color: '#006578', bgcolor: 'rgba(0,101,120,0.04)' }
+              }}
+            >
+              Collapse All
             </Button>
 
-            <Card sx={{ bgcolor: '#ffffff', p: { xs: 3, md: 5 } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                <Chip label={selectedArticle.category} size="small" sx={{ bgcolor: '#eff4ff', color: '#006578', fontWeight: 700 }} />
-                <Typography variant="caption" color="text.secondary">
-                  {selectedArticle.readTime} &bull; Published May 2026
-                </Typography>
-              </Box>
+            <Divider orientation="vertical" variant="middle" flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
 
-              <Typography
-                variant="h4"
+            <Button
+              onClick={handleJumpToLatest}
+              startIcon={<ArrowUpward />}
+              variant="outlined"
+              sx={{
+                borderColor: 'rgba(189, 200, 205, 0.8)',
+                color: '#3d494c',
+                fontSize: '0.85rem',
+                bgcolor: '#ffffff',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { borderColor: '#006578', color: '#006578', bgcolor: 'rgba(0,101,120,0.02)' }
+              }}
+            >
+              Jump to Latest
+            </Button>
+          </Box>
+        </Card>
+
+        {/* Showing indicators */}
+        <Box sx={{ mt: 1.5, px: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(11, 28, 48, 0.55)', letterSpacing: '1px', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.725rem' }}>
+            {searchQuery ? `Search Results: ${filteredReleases.length} match(es)` : `Showing ${filteredReleases.length} releases`}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Main Release Accordion Stream List */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 6 }}>
+        {filteredReleases.map((rel) => {
+          const isExpanded = !!expandedMap[rel.id];
+          const isLatest = rel.id === '1';
+
+          return (
+            <motion.div
+              key={rel.id}
+              ref={isLatest ? latestReleaseRef : null}
+              layout
+              transition={{ duration: 0.2 }}
+            >
+              <Accordion
+                expanded={isExpanded}
+                onChange={handleAccordionChange(rel.id)}
                 sx={{
-                  fontWeight: 700,
-                  fontFamily: '"Space Grotesk", sans-serif',
-                  color: '#0b1c30',
-                  mb: 1.5,
-                  fontSize: { xs: '1.5rem', md: '2.1rem' }
+                  border: '1px solid rgba(189, 200, 205, 0.4)',
+                  borderLeft: isLatest ? '4px solid #006578' : '1px solid rgba(189, 200, 205, 0.4)',
+                  boxShadow: 'none',
+                  '&:before': {
+                    display: 'none',
+                  },
+                  mb: 2,
+                  borderRadius: '6px !important',
+                  overflow: 'hidden',
+                  bgcolor: '#ffffff',
                 }}
               >
-                {selectedArticle.title}
-              </Typography>
-              <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '1.05rem', mb: 4 }}>
-                {selectedArticle.summary}
-              </Typography>
-              <Divider sx={{ mb: 4 }} />
-
-              <Box sx={{ color: '#3d494c', whiteSpace: 'pre-line', lineHeight: 1.7, '& h3': { color: '#0b1c30', mt: 4, mb: 1, fontWeight: 700 }, '& ul': { pl: 3, mt: 1 }, '& li': { mb: 1 } }}>
-                <Typography variant="body1" component="div">
-                  {selectedArticle.content}
-                </Typography>
-              </Box>
-            </Card>
-          </Box>
-        </motion.div>
-      ) : searchQuery ? (
-        /* If user is active typing in search query */
-        <Box sx={{ mb: 5 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#0b1c30' }}>
-            Search Results for "{searchQuery}"
-          </Typography>
-
-          {searchedArticles && searchedArticles.length > 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {searchedArticles.map((art) => (
-                <Card
-                  key={art.id}
-                  onClick={() => setSelectedArticle(art)}
+                {/* Accordion Summary/Header */}
+                <AccordionSummary
+                  expandIcon={<ExpandMore sx={{ color: isLatest ? '#006578' : '#6d797d' }} />}
                   sx={{
-                    bgcolor: '#ffffff',
-                    cursor: 'pointer',
-                    '&:hover': { borderColor: '#006578', bgcolor: 'rgba(0,101,120,0.01)' }
+                    px: 3,
+                    py: 1,
+                    bgcolor: isLatest ? 'rgba(0, 101, 120, 0.03)' : 'transparent',
+                    '& .MuiAccordionSummary-content': {
+                      alignItems: 'center',
+                      gap: 2,
+                    },
                   }}
                 >
-                  <CardContent sx={{ p: 2.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Chip label={art.category} size="small" variant="outlined" sx={{ color: '#006578', borderColor: '#006578' }} />
-                      <Typography variant="caption" color="text.secondary">{art.readTime}</Typography>
-                    </Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0b1c30' }}>{art.title}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{art.summary}</Typography>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          ) : (
-            <Card sx={{ bgcolor: '#ffffff', p: 5, textAlign: 'center' }}>
-              <QuestionAnswer sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>No results matched your search phrase</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Try searching standard tags like "webhook", "overview", "theme", or explore folders below.
-              </Typography>
-              <Button onClick={() => setSearchQuery('')} variant="text" sx={{ mt: 2, color: '#006578' }}>
-                Clear Search Query
-              </Button>
-            </Card>
-          )}
-        </Box>
-      ) : (
-        /* Main Category lists blocks */
-        <Box sx={{ mb: 5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
-            {mockHelpCategories.map((category) => (
-              <Box key={category.id}>
-                <Card sx={{ height: '100%', bgcolor: '#ffffff' }}>
-                  <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ mb: 2 }}>
-                      {getCategoryIcon(category.icon)}
-                    </Box>
-                    <Typography
-                      variant="h6"
+                  {/* Latest release gets NEW badge */}
+                  {isLatest && rel.isNew && (
+                    <Chip
+                      label="NEW"
+                      size="small"
                       sx={{
+                        bgcolor: '#0097B2',
+                        color: '#ffffff',
                         fontWeight: 700,
-                        color: '#0b1c30',
-                        fontSize: '1.15rem',
+                        fontSize: '10px',
+                        letterSpacing: '0.5px',
+                        borderRadius: '2px',
+                        height: '20px',
+                      }}
+                    />
+                  )}
+
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: isExpanded ? 700 : 500,
+                      fontSize: { xs: '0.95rem', md: '1.05rem' },
+                      color: isExpanded ? '#0b1c30' : 'text.primary',
+                      fontFamily: '"Space Grotesk", sans-serif',
+                      flexGrow: 1,
+                    }}
+                  >
+                    {isLatest ? `Release - ${rel.version} - ${rel.title}` : `${rel.version} - ${rel.title}`}
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.8rem',
+                      display: { xs: 'none', sm: 'inline-block' },
+                      mr: 1
+                    }}
+                  >
+                    {rel.date} &bull; {rel.readTime}
+                  </Typography>
+                </AccordionSummary>
+
+                {/* Accordion Content Details */}
+                <AccordionDetails sx={{ p: { xs: 2.5, md: 4 }, bgcolor: '#ffffff' }}>
+                  {/* Summary Overview */}
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontStyle: 'italic',
+                      color: 'text.secondary',
+                      mb: 3,
+                      fontSize: '0.95rem',
+                      lineHeight: 1.6,
+                      borderLeft: '2px solid rgba(0, 101, 120, 0.2)',
+                      pl: 2
+                    }}
+                  >
+                    {rel.summary}
+                  </Typography>
+
+                  <Divider sx={{ my: 3 }} />
+
+                  {/* Bulleted Change lists */}
+                  <Box sx={{ mb: 4 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        color: '#006578',
+                        fontWeight: 700,
                         fontFamily: '"Space Grotesk", sans-serif',
-                        mb: 1
+                        mb: 2,
                       }}
                     >
-                      {category.title}
+                      Detailed Changes
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      {category.description}
-                    </Typography>
-
-                    {/* Article Index Accordions inside Category Card */}
-                    <Box sx={{ mt: 'auto', borderTop: '1px solid rgba(0,0,0,0.04)', pt: 2 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#3d494c', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.5px', mb: 1.5, display: 'block' }}>
-                        Guides Directory:
-                      </Typography>
-                      {category.articles.map((art) => (
-                        <Box
-                          key={art.id}
-                          onClick={() => setSelectedArticle(art)}
-                          sx={{
-                            py: 1,
-                            px: 1.5,
-                            mb: 1,
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            bgcolor: '#f8f9ff',
-                            border: '1px solid transparent',
-                            '&:hover': {
-                              bgcolor: 'rgba(0,101,120,0.03)',
-                              borderColor: 'rgba(0,101,120,0.15)',
-                            }
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#0b1c30', fontSize: '0.85rem' }}>
-                            {art.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {art.readTime}
+                    <Stack spacing={1.5}>
+                      {rel.detailedNotes.map((note, noteIdx) => (
+                        <Box key={noteIdx} sx={{ display: 'flex', alignItems: 'start', gap: 1.5 }}>
+                          <CheckCircle sx={{ color: '#006578', fontSize: 18, mt: '3px' }} />
+                          <Typography variant="body2" sx={{ color: '#3d494c', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                            {note}
                           </Typography>
                         </Box>
                       ))}
+                    </Stack>
+                  </Box>
+
+                  {/* Feature status table */}
+                  {rel.features && rel.features.length > 0 && (
+                    <Box>
+                      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(189, 200, 205, 0.3)', overflow: 'hidden' }}>
+                        <Table size="small">
+                          <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 700, color: '#3d494c', fontSize: '11px', textTransform: 'uppercase', py: 1.2 }}>Feature Module</TableCell>
+                              <TableCell sx={{ fontWeight: 700, color: '#3d494c', fontSize: '11px', textTransform: 'uppercase', py: 1.2 }}>Release Status</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {rel.features.map((feat) => {
+                              const isStable = feat.status === 'STABLE';
+                              const isBeta = feat.status === 'BETA';
+                              return (
+                                <TableRow key={feat.name} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                  <TableCell sx={{ fontSize: '0.9rem', py: 1.5 }}>{feat.name}</TableCell>
+                                  <TableCell sx={{ py: 1.5 }}>
+                                    <Chip
+                                      label={feat.status}
+                                      size="small"
+                                      sx={{
+                                        fontWeight: 800,
+                                        fontSize: '10px',
+                                        borderRadius: '3px',
+                                        height: '20px',
+                                        bgcolor: isStable ? '#e2f7ed' : isBeta ? '#fff4e5' : '#fdeded',
+                                        color: isStable ? '#1b4d3e' : isBeta ? '#8a4d00' : '#ba1a1a',
+                                      }}
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
                     </Box>
-                  </CardContent>
-                </Card>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            </motion.div>
+          );
+        })}
+      </Box>
 
-      {/* Support Ticket Side Drawer using React Hook Form */}
-      <Drawer
-        anchor="right"
-        open={supportDrawerOpen}
-        onClose={() => setSupportDrawerOpen(false)}
-        sx={{
-          '& .MuiDrawer-paper': {
-            width: { xs: '100%', sm: 460 },
-            p: 4,
-            bgcolor: '#ffffff'
-          }
-        }}
-      >
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            fontFamily: '"Space Grotesk", sans-serif',
-            color: '#0b1c30',
-            mb: 1
-          }}
-        >
-          Contact Engineering Support
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-          Fill out this form to file an official support ticket. Validated dynamically under compliance constraints.
-        </Typography>
-
-        <form onSubmit={handleSubmit(onTicketSubmit)}>
-          <Stack spacing={3}>
-            {/* Requester Name */}
-            <Controller
-              name="name"
-              control={control}
-              rules={{ required: 'Please enter your name.' }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Contact Name"
-                  size="small"
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                  fullWidth
-                />
-              )}
-            />
-
-            {/* Email Address */}
-            <Controller
-              name="email"
-              control={control}
-              rules={{
-                required: 'Please provide email.',
-                pattern: { value: /^\S+@\S+$/i, message: 'Invalid email address.' }
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Alert Email"
-                  size="small"
-                  error={!!errors.email}
-                  helperText={errors.email?.message}
-                  fullWidth
-                />
-              )}
-            />
-
-            {/* Subject */}
-            <Controller
-              name="subject"
-              control={control}
-              rules={{ required: 'Subject heading is required.' }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Ticket Subject"
-                  size="small"
-                  placeholder="e.g. Problems uploading custom brand logo assets"
-                  error={!!errors.subject}
-                  helperText={errors.subject?.message}
-                  fullWidth
-                />
-              )}
-            />
-
-            {/* Severity selection */}
-            <Controller
-              name="urgency"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  select
-                  label="Priority Level"
-                  size="small"
-                  fullWidth
-                >
-                  <MenuItem value="low">Low (Standard improvement discussions)</MenuItem>
-                  <MenuItem value="medium">Medium (Deployment issues or metadata bugs)</MenuItem>
-                  <MenuItem value="high">High (Production note publishing errors)</MenuItem>
-                  <MenuItem value="critical">Critical (Webhook disruption or sync failure)</MenuItem>
-                </TextField>
-              )}
-            />
-
-            {/* Detail description */}
-            <Controller
-              name="description"
-              control={control}
-              rules={{ required: 'Detail information description is required.' }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Troubleshoot Details"
-                  multiline
-                  rows={4}
-                  placeholder="Describe your error logs, steps leading to issue, or requested features..."
-                  error={!!errors.description}
-                  helperText={errors.description?.message}
-                  fullWidth
-                />
-              )}
-            />
-
-            {/* Action buttons */}
-            <Box sx={{ display: 'flex', gap: 2, pt: 1 }}>
-              <Button
-                variant="outlined"
-                onClick={() => setSupportDrawerOpen(false)}
-                sx={{
-                  color: 'text.secondary',
-                  borderColor: 'rgba(189, 200, 205, 0.6)',
-                  flexGrow: 1
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                endIcon={<Send />}
-                sx={{
-                  bgcolor: '#006578',
-                  '&:hover': { bgcolor: '#008097' },
-                  flexGrow: 1
-                }}
-              >
-                Submit Ticket
-              </Button>
-            </Box>
-          </Stack>
-        </form>
-      </Drawer>
-
+      {/* Snackbar alerts */}
       <Snackbar
-        open={successSnackbar}
-        autoHideDuration={4000}
-        onClose={() => setSuccessSnackbar(false)}
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={() => setSuccessSnackbar(false)} severity="success" sx={{ width: '100%' }}>
-          Support Ticket successfully dispatched to myChron engineering.
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%', borderRadius: '4px' }}>
+          {snackbarMessage}
         </Alert>
       </Snackbar>
     </Box>

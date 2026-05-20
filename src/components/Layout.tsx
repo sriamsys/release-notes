@@ -57,8 +57,7 @@ export default function Layout() {
   };
 
   const handleManageContent = () => {
-    setSnackbarMessage('Content Management is restricted to Lead Contributors & Publishers.');
-    setSnackbarOpen(true);
+    navigate('/release-notes-management');
   };
 
   // Nav items from application layout guidelines
@@ -66,6 +65,10 @@ export default function Layout() {
     { text: 'Dashboard', path: '/dashboard', icon: <Dashboard /> },
     { text: 'Release Notes', path: '/release-notes', icon: <AutoStories /> },
     { text: 'Help Center', path: '/help-center', icon: <Help /> },
+  ];
+
+  const contentManagementNav = [
+    { text: 'Manage Releases', path: '/release-notes-management', icon: <Campaign /> },
   ];
 
   const systemNav = [
@@ -146,6 +149,72 @@ export default function Layout() {
                 Core Feeds
               </Typography>
               {primaryNav.map((item) => {
+                const isActive = currentPath === item.path;
+                return (
+                  <ListItem key={item.text} disablePadding>
+                    <ListItemButton
+                      onClick={() => navigate(item.path)}
+                      sx={{
+                        borderRadius: '6px',
+                        py: 0.75,
+                        px: 2,
+                        mb: 0.5,
+                        position: 'relative',
+                        backgroundColor: isActive ? 'rgba(0, 101, 120, 0.08)' : 'transparent',
+                        color: isActive ? '#006578' : '#3d494c',
+                        fontWeight: isActive ? 600 : 500,
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 101, 120, 0.04)',
+                        },
+                        '&::after': isActive ? {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: '3.5px',
+                          backgroundColor: '#006578',
+                          borderRadius: '0 4px 4px 0',
+                        } : {},
+                      }}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 36,
+                          color: isActive ? '#006578' : '#6d797d',
+                        }}
+                      >
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: isActive ? 600 : 500 }}>
+                            {item.text}
+                          </Typography>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+
+              <Typography
+                variant="caption"
+                sx={{
+                  mt: 2.5,
+                  px: 2,
+                  py: 1,
+                  display: 'block',
+                  fontWeight: 700,
+                  color: 'text.secondary',
+                  letterSpacing: '0.8px',
+                  fontSize: '0.675rem',
+                  textTransform: 'uppercase'
+                }}
+              >
+                Content Management
+              </Typography>
+              {contentManagementNav.map((item) => {
                 const isActive = currentPath === item.path;
                 return (
                   <ListItem key={item.text} disablePadding>
